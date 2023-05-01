@@ -1,12 +1,14 @@
 module Repo where
 
 import Config
-import Control.Monad
-import Data.Either
+import Control.Exception
+import Control.Monad.Extra
+import Data.Foldable
+import Exceptions
 import Gitdir
 import System.Directory
 import System.FilePath
-import System.IO.Error
+import Utils
 
 data RepoMetadata = RepoMetadata
   { worktree :: FilePath,
@@ -20,56 +22,38 @@ mkRepoPath (RepoMetadata {gitdir}) fp = let gd = dir gitdir in gd </> fp
 
 -- | Creates a directory inside the repository's gitdir,
 -- optionally creating parents
-createRepoDir :: RepoMetadata -> Bool -> FilePath -> IO (Either IOError FilePath)
+createRepoDir :: RepoMetadata -> Bool -> FilePath -> IO ()
 createRepoDir repo createParents fp = do
   let path = mkRepoPath repo fp
-  result <- tryIOError $ createDirectoryIfMissing createParents path
-  return (path <$ result)
+  createDirectoryIfMissing createParents path
 
-createNewRepository :: FilePath -> Bool -> IO (Either IOError RepoMetadata)
+createNewRepository :: FilePath -> Bool -> IO RepoMetadata
 createNewRepository worktreePath force = do
   let gitdir = mkGitdir worktreePath
   isDirectory <- doesDirectoryExist (dir gitdir)
 
   if not (force || isDirectory)
-    then return $ Left (userError "Not a Git repository")
+    then throw NotAGitRepository
     else do
       let configPath = worktreePath </> "config"
-      eitherConfig <- readConfig force configPath
-      return $ RepoMetadata worktreePath gitdir <$> (eitherConfig >>= guardVersion force)
+      RepoMetadata worktreePath gitdir <$> readConfig force configPath
 
-createWorktreePathIfMissing :: FilePath -> IO (Either IOError ())
+createWorktreePathIfMissing :: FilePath -> IO ()
 createWorktreePathIfMissing fp = do
   exists <- doesPathExist fp
   if exists
     then do
-      isDir <- doesDirectoryExist fp
-      if not isDir
-        then return $ Left $ userError $ show fp ++ " is not a directory!"
-        else do
-          contents <- listDirectory fp
-          if not (null contents)
-            then return $ Left $ userError $ show fp ++ " is not empty!"
-            else return $ Right ()
-    else tryIOError $ createDirectoryIfMissing True fp
+      unlessM (doesDirectoryExist fp) $ throw NotADirectory
+      unlessM (isDirectoryEmpty fp) $ throw DirectoryNotEmpty
+    else createDirectoryIfMissing True fp
 
-initRepository :: FilePath -> IO (Either IOError ())
+initRepository :: FilePath -> IO ()
 initRepository path = do
-  result <- createWorktreePathIfMissing path
-  case result of
-    Left err -> return $ Left err
-    Right _ -> do
-      eMetadata <- createNewRepository path True
-      case eMetadata of
-        Left err -> return $ Left err
-        Right metadata -> do
-          createdDirs <-
-            traverse
-              (createRepoDir metadata True)
-              ["branches", "objects", "refs" </> "tags", "refs" </> "heads"]
-          if not . null . lefts $ createdDirs
-            then return $ void (head createdDirs)
-            else do
-              writeFile (mkRepoPath metadata "description") "Unnamed repository; edit this file 'description' to name the repository.\n"
-              writeFile (mkRepoPath metadata "HEAD") "ref: refs/heads/master\n"
-              writeConfig (mkRepoPath metadata "config")
+  createWorktreePathIfMissing path
+  metadata <- createNewRepository path True
+  traverse_
+    (createRepoDir metadata True)
+    ["branches", "objects", "refs" </> "tags", "refs" </> "heads"]
+  writeFile (mkRepoPath metadata "description") "Unnamed repository; edit this file 'description' to name the repository.\n"
+  writeFile (mkRepoPath metadata "HEAD") "ref: refs/heads/master\n"
+  writeConfig (mkRepoPath metadata "config")

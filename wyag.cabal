@@ -63,8 +63,10 @@ library
     other-modules:    Parser
                     , Commands
                     , Config
+                    , Exceptions
                     , Gitdir
                     , Repo
+                    , Utils
     build-depends:    config-ini
                     , containers
                     , cryptohash-sha1

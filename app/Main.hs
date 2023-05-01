@@ -15,8 +15,4 @@ main = greet =<< execParser opts
 -- opts = P.info command
 
 greet :: Command -> IO ()
-greet (Init path) = do
-  result <- initRepository path
-  case result of
-    Left err -> print err
-    Right _ -> return ()
+greet (Init path) = initRepository path

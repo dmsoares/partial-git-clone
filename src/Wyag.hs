@@ -1,4 +1,5 @@
-module Wyag where
+module Wyag (module W) where
 
-import Parser
-import Commands
+import Commands as W
+import Parser as W
+import Repo as W

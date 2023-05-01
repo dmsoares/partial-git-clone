@@ -71,8 +71,12 @@ library
                     , directory
                     , extra
                     , filepath
+                    , microlens
+                    , microlens-th
+                    , microlens-mtl
                     , optparse-applicative
                     , regex-compat
+                    , text
                     , zlib
 
 executable wyag

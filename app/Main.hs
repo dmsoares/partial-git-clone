@@ -9,13 +9,14 @@ main = greet =<< execParser opts
     opts =
       info
         (commandParser <**> helper)
-        ( fullDesc
-            <> progDesc "Welcome to Write Yourself a Git"
-            <> header "hello - a test for optparse-applicative"
-        )
+        (fullDesc <> progDesc "Welcome to Write Yourself a Git")
 
 -- opts :: P.ParserInfo Command
 -- opts = P.info command
 
 greet :: Command -> IO ()
-greet = print
+greet (Init path) = do
+  result <- initRepository path
+  case result of
+    Left err -> print err
+    Right _ -> return ()

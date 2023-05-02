@@ -7,6 +7,7 @@ data GitException
   | NotAGitRepository
   | DirectoryNotEmpty
   | ConfigFileMissing
+  | NoGitDirectory
   | MalformedConfig String
   deriving (Show)
 

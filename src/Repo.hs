@@ -15,6 +15,7 @@ data RepoMetadata = RepoMetadata
     gitdir :: Gitdir,
     cfg :: Config
   }
+  deriving (Show)
 
 -- | Prefixes a filepath with the repository gitdir path
 mkRepoPath :: RepoMetadata -> FilePath -> FilePath
@@ -57,3 +58,16 @@ initRepository path = do
   writeFile (mkRepoPath metadata "description") "Unnamed repository; edit this file 'description' to name the repository.\n"
   writeFile (mkRepoPath metadata "HEAD") "ref: refs/heads/master\n"
   writeConfig (mkRepoPath metadata "config")
+
+findRepo :: FilePath -> Bool -> IO (Maybe RepoMetadata)
+findRepo fp required = do
+  path <- ifM (pathIsSymbolicLink fp) (getSymbolicLinkTarget fp) (return fp)
+  let gitdir = mkGitdir path
+  ifM
+    (doesDirectoryExist (dir gitdir))
+    (Just . RepoMetadata path gitdir <$> readConfig False (dir gitdir </> "config"))
+    $ do
+      parent <- getSymbolicLinkTarget $ path </> ".."
+      if parent == path
+        then if required then throw NoGitDirectory else return Nothing
+        else findRepo parent required

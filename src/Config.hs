@@ -4,6 +4,7 @@ module Config where
 
 import Control.Exception
 import Data.Ini.Config.Bidir
+import Data.Text
 import qualified Data.Text.IO as T
 import Exceptions
 import Lens.Micro
@@ -32,6 +33,9 @@ configParser = do
 configIni :: Ini Config
 configIni = ini defConfig configParser
 
+parseConfig :: Text -> Either String Config
+parseConfig txt = getIniValue <$> parseIni txt configIni
+
 isValidVersion :: Bool -> Config -> Bool
 isValidVersion True _ = True
 isValidVersion False cfg =
@@ -48,7 +52,7 @@ readConfig force path = do
       either
         (throw . MalformedConfig)
         return
-        (getIniValue <$> parseIni file configIni)
+        (parseConfig file)
     else
       if force
         then return defConfig

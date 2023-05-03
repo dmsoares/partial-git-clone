@@ -62,11 +62,14 @@ initRepository path = do
 findRepo :: FilePath -> Bool -> IO (Maybe RepoMetadata)
 findRepo fp required = do
   path <- ifM (pathIsSymbolicLink fp) (getSymbolicLinkTarget fp) (return fp)
+
   let gitdir = mkGitdir path
-  ifM
-    (doesDirectoryExist (dir gitdir))
-    (Just . RepoMetadata path gitdir <$> readConfig False (dir gitdir </> "config"))
-    $ do
+
+  isDirectory <- doesDirectoryExist $ dir gitdir
+
+  if isDirectory
+    then Just . RepoMetadata path gitdir <$> readConfig False (dir gitdir </> "config")
+    else do
       parent <- getSymbolicLinkTarget $ path </> ".."
       if parent == path
         then if required then throw NoGitDirectory else return Nothing

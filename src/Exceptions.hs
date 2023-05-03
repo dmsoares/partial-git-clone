@@ -9,6 +9,6 @@ data GitException
   | ConfigFileMissing
   | NoGitDirectory
   | MalformedConfig String
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance Exception GitException

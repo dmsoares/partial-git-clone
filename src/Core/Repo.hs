@@ -1,4 +1,4 @@
-module Repo where
+module Core.Repo where
 
 import Config
 import Control.Exception

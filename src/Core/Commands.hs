@@ -1,5 +1,6 @@
 module Commands where
 
-newtype Command
+data Command
   = Init FilePath
+  | Read FilePath
   deriving (Show)

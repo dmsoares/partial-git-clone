@@ -101,6 +101,7 @@ executable wyag
     -- Other library packages from which modules are imported.
     build-depends:    wyag
                     , optparse-applicative
+                    , text
 
     -- Directories containing source files.
     hs-source-dirs:   app

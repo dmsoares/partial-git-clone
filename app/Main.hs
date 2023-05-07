@@ -11,8 +11,6 @@ main = dispatchCommand =<< execParser opts
         (commandParser <**> helper)
         (fullDesc <> progDesc "Welcome to Write Yourself a Git")
 
--- opts :: P.ParserInfo Command
--- opts = P.info command
-
 dispatchCommand :: Command -> IO ()
-dispatchCommand (Init path) = initRepository path
+dispatchCommand (Init path) = initCommand path
+dispatchCommand (CatFile _ object) = catFileCommand object

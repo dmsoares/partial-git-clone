@@ -4,7 +4,7 @@ import Options.Applicative
 import Wyag
 
 main :: IO ()
-main = greet =<< execParser opts
+main = dispatchCommand =<< execParser opts
   where
     opts =
       info
@@ -14,5 +14,5 @@ main = greet =<< execParser opts
 -- opts :: P.ParserInfo Command
 -- opts = P.info command
 
-greet :: Command -> IO ()
-greet (Init path) = initRepository path
+dispatchCommand :: Command -> IO ()
+dispatchCommand (Init path) = initRepository path

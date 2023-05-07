@@ -1,6 +1,6 @@
-module Parser where
+module CLI.Parser where
 
-import Commands
+import Core.Commands
 import Options.Applicative
 import Prelude hiding (init)
 

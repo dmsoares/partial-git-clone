@@ -1,4 +1,4 @@
-module Utils where
+module Core.Utils where
 
 import System.Directory
 

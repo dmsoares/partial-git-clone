@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Config where
+module Core.Config where
 
 import Control.Exception
+import Core.Exceptions
 import Data.Ini.Config.Bidir
 import Data.Text
 import qualified Data.Text.IO as T
-import Exceptions
 import Lens.Micro
 import Lens.Micro.TH (makeLenses)
 import System.Directory

@@ -1,4 +1,4 @@
-module Gitdir (Gitdir, dir, mkGitdir) where
+module Core.Gitdir (Gitdir, dir, mkGitdir) where
 
 import System.FilePath
 

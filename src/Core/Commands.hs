@@ -1,4 +1,4 @@
-module Commands where
+module Core.Commands where
 
 data Command
   = Init FilePath

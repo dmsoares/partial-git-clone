@@ -60,14 +60,14 @@ library
     import:           base
     hs-source-dirs:   src
     exposed-modules:  Wyag
-    other-modules:    Parser
-                    , Commands
-                    , Config
-                    , Exceptions
-                    , Gitdir
-                    , Object
-                    , Repo
-                    , Utils
+    other-modules:    CLI.Parser
+                    , Core.Commands
+                    , Core.Config
+                    , Core.Exceptions
+                    , Core.Gitdir
+                    , Core.Object
+                    , Core.Repo
+                    , Core.Utils
     build-depends:    ascii
                     , bytestring
                     , base16-bytestring

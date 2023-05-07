@@ -1,4 +1,4 @@
-module Exceptions where
+module Core.Exceptions where
 
 import Control.Exception
 

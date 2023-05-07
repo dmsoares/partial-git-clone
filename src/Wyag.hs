@@ -1,5 +1,6 @@
 module Wyag (module W) where
 
-import Commands as W
-import Parser as W
-import Repo as W
+import CLI.Parser as W
+import Core.Commands as W
+import Core.Object as W
+import Core.Repo as W

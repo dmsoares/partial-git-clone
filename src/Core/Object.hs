@@ -1,7 +1,8 @@
-module Object where
+module Core.Object where
 
 import Codec.Compression.Zlib (compress, decompress)
 import Control.Monad
+import Core.Repo
 import Crypto.Hash.SHA1 (hash)
 import qualified Data.ByteString as B
 import Data.ByteString.Base16
@@ -9,7 +10,6 @@ import Data.ByteString.Lazy as BL hiding (map)
 import qualified Data.String as S
 import qualified Data.Text as T
 import Data.Void
-import Repo
 import System.FilePath
 import Text.Megaparsec
 import Text.Megaparsec.Byte

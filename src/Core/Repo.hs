@@ -1,14 +1,14 @@
 module Core.Repo where
 
-import Config
 import Control.Exception
 import Control.Monad.Extra
+import Core.Config
+import Core.Exceptions
+import Core.Utils
 import Data.Foldable
 import Data.Function
-import Exceptions
 import System.Directory
 import System.FilePath
-import Utils
 
 data RepoMetadata = RepoMetadata
   { worktree :: FilePath,

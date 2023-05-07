@@ -8,7 +8,6 @@ import Data.Function
 import Exceptions
 import System.Directory
 import System.FilePath
-import System.IO.Error
 import Utils
 
 data RepoMetadata = RepoMetadata
@@ -27,13 +26,16 @@ mkGitdir fp = fp </> ".git"
 
 -- | Creates a directory inside the repository's gitdir,
 -- optionally creating parents
-createRepoDir :: RepoMetadata -> Bool -> FilePath -> IO ()
-createRepoDir repo createParents fp = do
+createRepositoryDirectory :: RepoMetadata -> Bool -> FilePath -> IO ()
+createRepositoryDirectory repo createParents fp = do
   let path = mkRepoPath repo fp
   createDirectoryIfMissing createParents path
 
-createRepositoryMetadata :: FilePath -> Bool -> IO RepoMetadata
-createRepositoryMetadata worktreePath force = do
+createRepositoryFile :: RepoMetadata -> FilePath -> String -> IO ()
+createRepositoryFile metadata path = writeFile (mkRepoPath metadata path)
+
+generateRepositoryMetadata :: FilePath -> Bool -> IO RepoMetadata
+generateRepositoryMetadata worktreePath force = do
   let gitdir = mkGitdir worktreePath
   isDirectory <- doesDirectoryExist gitdir
 
@@ -55,18 +57,27 @@ createWorktreePathIfMissing fp = do
 initRepository :: FilePath -> IO ()
 initRepository path = do
   createWorktreePathIfMissing path
-  metadata <- createRepositoryMetadata path True
+  createInitFilesAndDirectories =<< generateRepositoryMetadata path True
+
+createInitFilesAndDirectories :: RepoMetadata -> IO ()
+createInitFilesAndDirectories metadata = traverse_ ($ metadata) [createInitDirectories, createInitFiles]
+
+createInitDirectories :: RepoMetadata -> IO ()
+createInitDirectories metadata =
   traverse_
-    (createRepoDir metadata True)
+    (createRepositoryDirectory metadata True)
     ["branches", "objects", "refs" </> "tags", "refs" </> "heads"]
-  writeFile (mkRepoPath metadata "description") "Unnamed repository; edit this file 'description' to name the repository.\n"
-  writeFile (mkRepoPath metadata "HEAD") "ref: refs/heads/master\n"
+
+createInitFiles :: RepoMetadata -> IO ()
+createInitFiles metadata = do
+  createRepositoryFile metadata "description" "Unnamed repository; edit this file 'description' to name the repository.\n"
+  createRepositoryFile metadata "HEAD" "ref: refs/heads/master\n"
   writeConfig (mkRepoPath metadata "config")
 
 findRepo :: FilePath -> Bool -> IO (Maybe RepoMetadata)
 findRepo path required = do
   path' <- getRealPath path
-  result <- createRepositoryMetadata path' False & tryJust (guard . (== NotAGitRepository))
+  result <- generateRepositoryMetadata path' False & tryJust (guard . (== NotAGitRepository))
   case result of
     Right repoMetadata -> pure $ Just repoMetadata
     Left _ -> do

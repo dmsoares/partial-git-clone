@@ -12,7 +12,7 @@ Following [WYAG](https://wyag.thb.lt/), this Git clone should implement the foll
 - [x] cat-file 
 - [ ] checkout
 - [ ] commit 
-- [ ] hash-object 
+- [x] hash-object 
 - [x] init 
 - [ ] log 
 - [ ] ls-files 

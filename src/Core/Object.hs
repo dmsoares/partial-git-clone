@@ -4,18 +4,19 @@ import Codec.Compression.Zlib (compress, decompress)
 import Control.Monad
 import Core.Repo
 import Crypto.Hash.SHA1 (hash)
-import qualified Data.ByteString as B
 import Data.ByteString.Base16
 import Data.ByteString.Lazy as BL hiding (map)
 import qualified Data.String as S
+import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.Encoding (decodeUtf8)
 import Data.Void
 import System.FilePath
 import Text.Megaparsec
 import Text.Megaparsec.Byte
 import qualified Text.Megaparsec.Byte.Lexer as L
 
-type SHA = B.ByteString
+type SHA = Text
 
 data GitObject = GitObject {typ :: GitObjectType, size :: Int, contents :: ByteString}
   deriving (Show)
@@ -29,7 +30,7 @@ instance Show GitObjectType where
   show Tag = "tag"
   show Tree = "tree"
 
-readObject :: RepoMetadata -> T.Text -> IO (Maybe GitObject)
+readObject :: RepoMetadata -> Text -> IO (Maybe GitObject)
 readObject repo sha
   | T.length sha < 2 = pure Nothing
   | otherwise = do
@@ -40,9 +41,10 @@ readObject repo sha
 writeObject :: RepoMetadata -> GitObject -> IO SHA
 writeObject repo obj = do
   let (sha, result) = compress <$> hashObject obj
-      dir = B.take 2 sha
-      fname = B.drop 2 sha
-  BL.writeFile (mkRepoPath repo ("objects" </> show dir </> show fname)) result
+      dir = T.take 2 sha
+      fname = T.drop 2 sha
+  createRepositoryDirectory repo True ("objects" </> T.unpack dir)
+  BL.writeFile (mkRepoPath repo ("objects" </> T.unpack dir </> T.unpack fname)) result
   pure sha
 
 serializeObject :: GitObject -> ByteString
@@ -51,8 +53,13 @@ serializeObject (GitObject {..}) = S.fromString (show typ ++ " " ++ show size ++
 hashObject :: GitObject -> (SHA, ByteString)
 hashObject obj =
   let serializedObject = serializeObject obj
-      sha = encode . hash . toStrict $ serializedObject
+      sha = decodeUtf8 . encode . hash . toStrict $ serializedObject
    in (sha, serializedObject)
+
+fromContents :: ByteString -> GitObjectType -> GitObject
+fromContents contents typ = GitObject typ len contents
+  where
+    len = fromIntegral $ BL.length contents
 
 -- Object parsers
 type Parser = Parsec Void ByteString

@@ -2,90 +2,119 @@ module Core.Object where
 
 import Codec.Compression.Zlib (compress, decompress)
 import Control.Monad
+import Core.Commit
+import Core.Parser
 import Core.Repo
 import Crypto.Hash.SHA1 (hash)
+import Data.ByteString as B
 import Data.ByteString.Base16
-import Data.ByteString.Lazy as BL hiding (map)
-import qualified Data.String as S
+import qualified Data.ByteString.Lazy as BL
+import Data.ByteString.UTF8
+import Data.Byteable
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
-import Data.Void
 import System.FilePath
-import Text.Megaparsec
-import Text.Megaparsec.Byte
 import qualified Text.Megaparsec.Byte.Lexer as L
 
 type SHA = Text
 
-data GitObject = GitObject {typ :: GitObjectType, size :: Int, contents :: ByteString}
+data GitObjectType = BlobType | CommitType | TagType | TreeType
+  deriving (Bounded, Enum, Show)
+
+data GitObject
+  = GitBlob Blob
+  | GitCommit Commit
+  | GitTag Tag
+  | GitTree Tree
   deriving (Show)
 
-data GitObjectType = Blob | Commit | Tag | Tree
-  deriving (Enum, Bounded)
+newtype Blob = Blob ByteString
+  deriving (Eq, Show)
 
-instance Show GitObjectType where
-  show Blob = "blob"
-  show Commit = "commit"
-  show Tag = "tag"
-  show Tree = "tree"
+newtype Tag = Tag ByteString
+  deriving (Eq, Show)
+
+newtype Tree = Tree ByteString
+  deriving (Eq, Show)
+
+instance Byteable GitObjectType where
+  toBytes = fromString . show
+
+instance Byteable Blob where
+  toBytes (Blob contents) = contents
+
+instance Byteable Tag where
+  toBytes (Tag contents) = contents
+
+instance Byteable Tree where
+  toBytes (Tree contents) = contents
+
+instance Byteable GitObject where
+  toBytes (GitBlob blob) = withHeader "blob" $ toBytes blob
+  toBytes (GitCommit commit) = withHeader "commit" $ toBytes commit
+  toBytes (GitTag tag) = withHeader "tag" $ toBytes tag
+  toBytes (GitTree tree) = withHeader "tree" $ toBytes tree
+
+withHeader :: ByteString -> ByteString -> ByteString
+withHeader oType content = mconcat [oType, " ", fromString . show $ B.length content, "\NUL", content]
 
 readObject :: RepoMetadata -> Text -> IO (Maybe GitObject)
 readObject repo sha
   | T.length sha < 2 = pure Nothing
   | otherwise = do
       let path = mkRepoPath repo $ "objects" </> T.unpack (T.take 2 sha) </> T.unpack (T.drop 2 sha)
-      file <- decompress <$> BL.readFile path
+      file <- BL.toStrict . decompress <$> BL.readFile path
       pure $ parseMaybe objectP file
 
 writeObject :: RepoMetadata -> GitObject -> IO SHA
 writeObject repo obj = do
-  let (sha, result) = compress <$> hashObject obj
-      dir = T.take 2 sha
-      fname = T.drop 2 sha
-  createRepositoryDirectory repo True ("objects" </> T.unpack dir)
-  BL.writeFile (mkRepoPath repo ("objects" </> T.unpack dir </> T.unpack fname)) result
-  pure sha
+  let (sha, result) = BL.toStrict . compress . BL.fromStrict <$> hashObject obj
+  writeSerializedObject repo sha result
 
-serializeObject :: GitObject -> ByteString
-serializeObject (GitObject {..}) = S.fromString (show typ ++ " " ++ show size ++ ['\NUL']) <> contents
+writeSerializedObject :: RepoMetadata -> SHA -> ByteString -> IO SHA
+writeSerializedObject repo sha bytes = do
+  let dir = "objects" </> T.unpack (T.take 2 sha)
+      fname = T.drop 2 sha
+  createRepositoryDirectory repo True dir
+  createRepositoryFile repo (dir </> T.unpack fname) bytes
+  pure sha
 
 hashObject :: GitObject -> (SHA, ByteString)
 hashObject obj =
-  let serializedObject = serializeObject obj
-      sha = decodeUtf8 . encode . hash . toStrict $ serializedObject
+  let serializedObject = toBytes obj
+      sha = genSHA serializedObject
    in (sha, serializedObject)
 
-fromContents :: ByteString -> GitObjectType -> GitObject
-fromContents contents typ = GitObject typ len contents
-  where
-    len = fromIntegral $ BL.length contents
+genSHA :: ByteString -> SHA
+genSHA = decodeUtf8 . encode . hash
+
+fromContents :: ByteString -> GitObjectType -> ByteString
+fromContents contents typ = withHeader (toBytes typ) contents
 
 -- Object parsers
-type Parser = Parsec Void ByteString
+
+headerP :: Parser (ByteString, Int)
+headerP = do
+  typ <- takeWhileP (Just "object type") (/= 20)
+  space
+  size <- L.decimal
+  void $ char 0
+  pure (typ, size)
 
 objectP :: Parser GitObject
 objectP = do
-  typ <- objectTypeP
-  space
-  size <- objectSizeP
-  nullP
+  (typ, size) <- headerP
   contents <- objectContentsP
 
-  if fromIntegral size == BL.length contents
-    then pure $ GitObject {..}
-    else fail $ "Malformed object " ++ show typ ++ ": bad length"
-
-objectTypeP :: Parser GitObjectType
-objectTypeP =
-  label "valid object type: blob | commit | tag | tree" $
-    choice typeParser
-  where
-    types = [minBound :: GitObjectType .. maxBound]
-    typeParser = map (\t -> t <$ string (S.fromString . show $ t)) types
-
-objectSizeP :: Parser Int
-objectSizeP = L.decimal
+  if fromIntegral size /= B.length contents
+    then fail $ "Malformed object " ++ show typ ++ ": bad length"
+    else case typ of
+      "blob" -> GitBlob . Blob <$> takeRest
+      "commit" -> GitCommit <$> commitP
+      "tag" -> GitTag . Tag <$> takeRest
+      "tree" -> GitTree . Tree <$> takeRest
+      _ -> fail "No such type"
 
 objectContentsP :: Parser ByteString
 objectContentsP = takeRest
@@ -96,7 +125,7 @@ nullP = void $ char 0
 parseFileTest :: (Show a) => Parser a -> FilePath -> IO a
 parseFileTest parser path = do
   compressedFile <- BL.readFile path
-  let decompressedFile = decompress compressedFile
+  let decompressedFile = BL.toStrict . decompress $ compressedFile
       Just parsed = parseMaybe parser decompressedFile
   print decompressedFile
   print parsed

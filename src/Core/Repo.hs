@@ -5,6 +5,7 @@ import Control.Monad.Extra
 import Core.Config
 import Core.Exceptions
 import Core.Utils
+import Data.ByteString as B
 import Data.Foldable
 import Data.Function
 import System.Directory
@@ -31,8 +32,8 @@ createRepositoryDirectory repo createParents fp = do
   let path = mkRepoPath repo fp
   createDirectoryIfMissing createParents path
 
-createRepositoryFile :: RepoMetadata -> FilePath -> String -> IO ()
-createRepositoryFile metadata path = writeFile (mkRepoPath metadata path)
+createRepositoryFile :: RepoMetadata -> FilePath -> ByteString -> IO ()
+createRepositoryFile metadata path = B.writeFile (mkRepoPath metadata path)
 
 generateRepositoryMetadata :: FilePath -> Bool -> IO RepoMetadata
 generateRepositoryMetadata worktreePath force = do

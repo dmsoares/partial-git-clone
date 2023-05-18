@@ -1,7 +1,7 @@
 module CLI.Parser where
 
 import Core.Commands
-import Core.Object
+import Core.Object hiding (objectTypeP)
 import Data.Void
 import qualified Options.Applicative as Opt
 import Text.Megaparsec

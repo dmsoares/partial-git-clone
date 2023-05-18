@@ -20,7 +20,13 @@ import qualified Text.Megaparsec.Byte.Lexer as L
 type SHA = Text
 
 data GitObjectType = BlobType | CommitType | TagType | TreeType
-  deriving (Bounded, Enum, Show)
+  deriving (Bounded, Enum)
+
+instance Show GitObjectType where
+  show BlobType = "blob"
+  show CommitType = "commit"
+  show TagType = "tag"
+  show TreeType = "tree"
 
 data GitObject
   = GitBlob Blob
@@ -65,19 +71,21 @@ readObject repo sha
   | otherwise = do
       let path = mkRepoPath repo $ "objects" </> T.unpack (T.take 2 sha) </> T.unpack (T.drop 2 sha)
       file <- BL.toStrict . decompress <$> BL.readFile path
+      print file
       pure $ parseMaybe objectP file
 
 writeObject :: RepoMetadata -> GitObject -> IO SHA
 writeObject repo obj = do
-  let (sha, result) = BL.toStrict . compress . BL.fromStrict <$> hashObject obj
+  let (sha, result) = hashObject obj
   writeSerializedObject repo sha result
 
 writeSerializedObject :: RepoMetadata -> SHA -> ByteString -> IO SHA
 writeSerializedObject repo sha bytes = do
   let dir = "objects" </> T.unpack (T.take 2 sha)
       fname = T.drop 2 sha
+      compressedBytes = BL.toStrict . compress . BL.fromStrict $ bytes
   createRepositoryDirectory repo True dir
-  createRepositoryFile repo (dir </> T.unpack fname) bytes
+  createRepositoryFile repo (dir </> T.unpack fname) compressedBytes
   pure sha
 
 hashObject :: GitObject -> (SHA, ByteString)
@@ -94,9 +102,9 @@ fromContents contents typ = withHeader (toBytes typ) contents
 
 -- Object parsers
 
-headerP :: Parser (ByteString, Int)
+headerP :: Parser (GitObjectType, Int)
 headerP = do
-  typ <- takeWhileP (Just "object type") (/= 20)
+  typ <- objectTypeP
   space
   size <- L.decimal
   void $ char 0
@@ -110,23 +118,21 @@ objectP = do
   if fromIntegral size /= B.length contents
     then fail $ "Malformed object " ++ show typ ++ ": bad length"
     else case typ of
-      "blob" -> GitBlob . Blob <$> takeRest
-      "commit" -> GitCommit <$> commitP
-      "tag" -> GitTag . Tag <$> takeRest
-      "tree" -> GitTree . Tree <$> takeRest
-      _ -> fail "No such type"
+      BlobType -> pure . GitBlob . Blob $ contents
+      CommitType -> GitCommit <$> commitP
+      TagType -> pure . GitTag . Tag $ contents
+      TreeType -> pure . GitTree . Tree $ contents
+
+objectTypeP :: Parser GitObjectType
+objectTypeP =
+  label "valid object type: blob | commit | tag | tree" $
+    choice typeParser
+  where
+    types = [minBound :: GitObjectType .. maxBound]
+    typeParser = fmap (\t -> t <$ string (toBytes t)) types
 
 objectContentsP :: Parser ByteString
 objectContentsP = takeRest
 
 nullP :: Parser ()
 nullP = void $ char 0
-
-parseFileTest :: (Show a) => Parser a -> FilePath -> IO a
-parseFileTest parser path = do
-  compressedFile <- BL.readFile path
-  let decompressedFile = BL.toStrict . decompress $ compressedFile
-      Just parsed = parseMaybe parser decompressedFile
-  print decompressedFile
-  print parsed
-  pure parsed

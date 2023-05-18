@@ -1,5 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
-
 module Core.Commands where
 
 import Control.Monad
@@ -22,6 +20,7 @@ initAction = initRepository
 
 catFileAction :: ObjectSha -> IO ()
 catFileAction sha = do
+  print $ "SHA: " <> sha
   Just repo <- findRepo "." True
   Just obj <- readObject repo sha
   print obj

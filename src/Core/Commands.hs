@@ -1,9 +1,11 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Core.Commands where
 
 import Control.Monad
 import Core.Object
 import Core.Repo (findRepo, generateRepositoryMetadata, initRepository)
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString as B
 import Data.Text
 
 type Write = Bool
@@ -14,7 +16,6 @@ data Command
   = Init FilePath
   | CatFile GitObjectType ObjectSha
   | HashObject GitObjectType Write FilePath
-  deriving (Show)
 
 initAction :: FilePath -> IO ()
 initAction = initRepository
@@ -27,10 +28,10 @@ catFileAction sha = do
 
 hashObjectAction :: GitObjectType -> Write -> FilePath -> IO ()
 hashObjectAction typ w path = do
-  contents <- BL.readFile path
+  contents <- B.readFile path
   let obj = fromContents contents typ
-      (sha, _) = hashObject obj
+      sha = genSHA obj
   when w do
     repo <- generateRepositoryMetadata "." False
-    void $ writeObject repo obj
+    void $ writeSerializedObject repo sha obj
   print sha

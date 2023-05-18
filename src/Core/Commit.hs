@@ -1,11 +1,10 @@
 module Core.Commit where
 
-import Data.ByteString.Lazy as BL
-import Data.Void
-import Text.Megaparsec
-import Text.Megaparsec.Byte
+import Core.Parser
+import Data.ByteString as B
+import Data.Byteable
 
-data CommitContent = CommitContent
+data Commit = Commit
   { commitTree :: ByteString,
     commitParents :: [ByteString],
     commitAuthor :: ByteString,
@@ -14,11 +13,22 @@ data CommitContent = CommitContent
   }
   deriving (Eq, Show)
 
-type Parser = Parsec Void ByteString
+mkCommit :: ByteString -> Maybe Commit
+mkCommit = parseMaybe commitP
 
-commitP :: Parser CommitContent
+instance Byteable Commit where
+  toBytes (Commit {..}) =
+    mconcat
+      [ "tree " <> commitTree <> "\n",
+        mconcat . fmap (\parent -> "parent " <> parent <> "\n") $ commitParents,
+        "author " <> commitAuthor <> "\n",
+        "committer " <> commitCommitter <> "\n",
+        "\n" <> commitMessage <> "\n"
+      ]
+
+commitP :: Parser Commit
 commitP =
-  CommitContent
+  Commit
     <$> kvP "tree"
     <*> many (kvP "parent")
     <*> kvP "author"
@@ -26,9 +36,4 @@ commitP =
     <*> (newline >> takeRest)
 
 kvP :: ByteString -> Parser ByteString
-kvP key = BL.pack <$> (string key *> space *> many printChar <* eol)
-
-parseFileTest :: (Show a) => Parser a -> FilePath -> IO ()
-parseFileTest parser path = do
-  file <- BL.readFile path
-  parseTest parser file
+kvP key = B.pack <$> (string key *> space *> many printChar <* eol)

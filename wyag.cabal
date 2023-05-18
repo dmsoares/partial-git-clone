@@ -67,9 +67,11 @@ library
                     , Core.Exceptions
                     , Core.Gitdir
                     , Core.Object
+                    , Core.Parser
                     , Core.Repo
                     , Core.Utils
     build-depends:    ascii
+                    , byteable
                     , bytestring
                     , base16-bytestring
                     , config-ini
@@ -85,6 +87,7 @@ library
                     , optparse-applicative
                     , regex-compat
                     , text
+                    , utf8-string
                     , zlib
 
 executable wyag

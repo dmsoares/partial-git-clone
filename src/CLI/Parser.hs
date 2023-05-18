@@ -37,10 +37,4 @@ objectTypeP :: String -> Maybe GitObjectType
 objectTypeP = parseMaybe (choice typeParser)
   where
     types = [minBound :: GitObjectType .. maxBound]
-    typeParser = map (\t -> t <$ string (type2Option t) :: Parsec Void String GitObjectType) types
-
-type2Option :: GitObjectType -> String
-type2Option BlobType = "blob"
-type2Option CommitType = "commit"
-type2Option TagType = "tag"
-type2Option TreeType = "tree"
+    typeParser = map (\t -> t <$ string (show t) :: Parsec Void String GitObjectType) types

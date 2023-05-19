@@ -11,13 +11,12 @@ import Data.ByteString.Base16
 import qualified Data.ByteString.Lazy as BL
 import Data.ByteString.UTF8
 import Data.Byteable
-import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
 import System.FilePath
 import qualified Text.Megaparsec.Byte.Lexer as L
 
-type SHA = Text
+type SHA = ByteString
 
 data GitObjectType = BlobType | CommitType | TagType | TreeType
   deriving (Bounded, Enum)
@@ -65,13 +64,12 @@ instance Byteable GitObject where
 withHeader :: ByteString -> ByteString -> ByteString
 withHeader oType content = mconcat [oType, " ", fromString . show $ B.length content, "\NUL", content]
 
-readObject :: RepoMetadata -> Text -> IO (Maybe GitObject)
+readObject :: RepoMetadata -> SHA -> IO (Maybe GitObject)
 readObject repo sha
-  | T.length sha < 2 = pure Nothing
+  | B.length sha < 2 = pure Nothing
   | otherwise = do
-      let path = mkRepoPath repo $ "objects" </> T.unpack (T.take 2 sha) </> T.unpack (T.drop 2 sha)
+      let path = mkRepoPath repo $ "objects" </> T.unpack (decodeUtf8 (B.take 2 sha)) </> T.unpack (decodeUtf8 (B.drop 2 sha))
       file <- BL.toStrict . decompress <$> BL.readFile path
-      print file
       pure $ parseMaybe objectP file
 
 writeObject :: RepoMetadata -> GitObject -> IO SHA
@@ -81,8 +79,8 @@ writeObject repo obj = do
 
 writeSerializedObject :: RepoMetadata -> SHA -> ByteString -> IO SHA
 writeSerializedObject repo sha bytes = do
-  let dir = "objects" </> T.unpack (T.take 2 sha)
-      fname = T.drop 2 sha
+  let dir = "objects" </> T.unpack (decodeUtf8 (B.take 2 sha))
+      fname = decodeUtf8 $ B.drop 2 sha
       compressedBytes = BL.toStrict . compress . BL.fromStrict $ bytes
   createRepositoryDirectory repo True dir
   createRepositoryFile repo (dir </> T.unpack fname) compressedBytes
@@ -95,7 +93,7 @@ hashObject obj =
    in (sha, serializedObject)
 
 genSHA :: ByteString -> SHA
-genSHA = decodeUtf8 . encode . hash
+genSHA = encode . hash
 
 fromContents :: ByteString -> GitObjectType -> ByteString
 fromContents contents typ = withHeader (toBytes typ) contents
@@ -113,7 +111,7 @@ headerP = do
 objectP :: Parser GitObject
 objectP = do
   (typ, size) <- headerP
-  contents <- objectContentsP
+  contents <- lookAhead objectContentsP
 
   if fromIntegral size /= B.length contents
     then fail $ "Malformed object " ++ show typ ++ ": bad length"

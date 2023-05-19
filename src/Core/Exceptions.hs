@@ -8,6 +8,8 @@ data GitException
   | DirectoryNotEmpty
   | ConfigFileMissing
   | NoGitDirectory
+  | NotAGitObject
+  | NotAGitCommitObject
   | MalformedConfig String
   deriving (Eq, Show)
 

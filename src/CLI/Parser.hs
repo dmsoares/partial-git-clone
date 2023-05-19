@@ -14,7 +14,8 @@ commandParser =
     mconcat
       [ Opt.command "init" (Opt.info initP (Opt.progDesc "Initialize a new, empty repository")),
         Opt.command "cat-file" (Opt.info catFileP (Opt.progDesc "Provide content of repository objects")),
-        Opt.command "hash-object" (Opt.info hashObjectP (Opt.progDesc "Compute object ID and optionally creates a blob from a file"))
+        Opt.command "hash-object" (Opt.info hashObjectP (Opt.progDesc "Compute object ID and optionally creates a blob from a file")),
+        Opt.command "log" (Opt.info logP (Opt.progDesc "Shows the commit logs"))
       ]
 
 initP :: Opt.Parser Command
@@ -32,6 +33,9 @@ hashObjectP =
     <$> Opt.option (Opt.maybeReader objectTypeP) (Opt.long "type" <> Opt.short 't' <> Opt.metavar "TYPE" <> Opt.value BlobType <> Opt.help "Specify the type")
     <*> Opt.switch (Opt.long "write" <> Opt.short 'w' <> Opt.help "Write object into database")
     <*> Opt.strArgument (Opt.metavar "path" <> Opt.help "Read object from <file>")
+
+logP :: Opt.Parser Command
+logP = Log <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit to log")
 
 objectTypeP :: String -> Maybe GitObjectType
 objectTypeP = parseMaybe (choice typeParser)

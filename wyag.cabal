@@ -84,6 +84,7 @@ library
                     , microlens
                     , microlens-th
                     , microlens-mtl
+                    , mtl
                     , optparse-applicative
                     , regex-compat
                     , text

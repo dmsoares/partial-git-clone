@@ -18,6 +18,9 @@ data RepoMetadata = RepoMetadata
   }
   deriving (Show)
 
+emptyRepoMetadata :: RepoMetadata
+emptyRepoMetadata = RepoMetadata mempty mempty defConfig
+
 -- | Prefixes a filepath with the repository gitdir path
 mkRepoPath :: RepoMetadata -> FilePath -> FilePath
 mkRepoPath (RepoMetadata {gitdir}) fp = let gd = gitdir in gd </> fp

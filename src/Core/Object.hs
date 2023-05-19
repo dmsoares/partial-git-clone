@@ -1,10 +1,10 @@
 module Core.Object where
 
 import Codec.Compression.Zlib (compress, decompress)
-import Control.Monad
 import Core.Commit
 import Core.Parser
 import Core.Repo
+import Core.Tree
 import Crypto.Hash.SHA1 (hash)
 import Data.ByteString as B
 import Data.ByteString.Base16
@@ -40,9 +40,6 @@ newtype Blob = Blob ByteString
 newtype Tag = Tag ByteString
   deriving (Eq, Show)
 
-newtype Tree = Tree ByteString
-  deriving (Eq, Show)
-
 instance Byteable GitObjectType where
   toBytes = fromString . show
 
@@ -51,9 +48,6 @@ instance Byteable Blob where
 
 instance Byteable Tag where
   toBytes (Tag contents) = contents
-
-instance Byteable Tree where
-  toBytes (Tree contents) = contents
 
 instance Byteable GitObject where
   toBytes (GitBlob blob) = withHeader "blob" $ toBytes blob
@@ -98,15 +92,13 @@ genSHA = encode . hash
 fromContents :: ByteString -> GitObjectType -> ByteString
 fromContents contents typ = withHeader (toBytes typ) contents
 
--- Object parsers
+objectType :: GitObject -> GitObjectType
+objectType (GitBlob _) = BlobType
+objectType (GitCommit _) = CommitType
+objectType (GitTag _) = TagType
+objectType (GitTree _) = TreeType
 
-headerP :: Parser (GitObjectType, Int)
-headerP = do
-  typ <- objectTypeP
-  space
-  size <- L.decimal
-  void $ char 0
-  pure (typ, size)
+-- Object parsers
 
 objectP :: Parser GitObject
 objectP = do
@@ -119,7 +111,10 @@ objectP = do
       BlobType -> pure . GitBlob . Blob $ contents
       CommitType -> GitCommit <$> commitP
       TagType -> pure . GitTag . Tag $ contents
-      TreeType -> pure . GitTree . Tree $ contents
+      TreeType -> GitTree <$> treeP
+
+headerP :: Parser (GitObjectType, Int)
+headerP = (,) <$> (objectTypeP <* space) <*> (L.decimal <* char 0)
 
 objectTypeP :: Parser GitObjectType
 objectTypeP =
@@ -131,6 +126,3 @@ objectTypeP =
 
 objectContentsP :: Parser ByteString
 objectContentsP = takeRest
-
-nullP :: Parser ()
-nullP = void $ char 0

@@ -10,6 +10,7 @@ data GitException
   | NoGitDirectory
   | NotAGitObject
   | NotAGitCommitObject
+  | GitObjectTypeMismatch String
   | MalformedConfig String
   deriving (Eq, Show)
 

@@ -15,7 +15,8 @@ commandParser =
       [ Opt.command "init" (Opt.info initP (Opt.progDesc "Initialize a new, empty repository")),
         Opt.command "cat-file" (Opt.info catFileP (Opt.progDesc "Provide content of repository objects")),
         Opt.command "hash-object" (Opt.info hashObjectP (Opt.progDesc "Compute object ID and optionally creates a blob from a file")),
-        Opt.command "log" (Opt.info logP (Opt.progDesc "Shows the commit logs"))
+        Opt.command "log" (Opt.info logP (Opt.progDesc "Shows the commit logs")),
+        Opt.command "ls-tree" (Opt.info lsTreeP (Opt.progDesc "List the contents of a tree object"))
       ]
 
 initP :: Opt.Parser Command
@@ -36,6 +37,9 @@ hashObjectP =
 
 logP :: Opt.Parser Command
 logP = Log <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit to log")
+
+lsTreeP :: Opt.Parser Command
+lsTreeP = Log <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The tree to show")
 
 objectTypeP :: String -> Maybe GitObjectType
 objectTypeP = parseMaybe (choice typeParser)

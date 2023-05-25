@@ -1,9 +1,9 @@
-module Core.Tree where
+module Wyag.Core.Tree where
 
 import Control.Monad
-import Core.Parser
-import Data.ByteString as B
+import Data.ByteString as B hiding (foldr)
 import Data.Byteable
+import Wyag.Core.Parser
 
 data TreeEntry = TreeEntry {mode :: ByteString, path :: ByteString, sha :: ByteString}
   deriving (Eq, Show)

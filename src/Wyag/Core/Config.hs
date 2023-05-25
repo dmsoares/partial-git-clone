@@ -1,15 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Core.Config where
+module Wyag.Core.Config where
 
 import Control.Exception
-import Core.Exceptions
 import Data.Ini.Config.Bidir
 import Data.Text
 import qualified Data.Text.IO as T
 import Lens.Micro
 import Lens.Micro.TH (makeLenses)
 import System.Directory
+import Wyag.Core.Exceptions
 
 data Config = Config
   { _repositoryFormatVersion :: Int,

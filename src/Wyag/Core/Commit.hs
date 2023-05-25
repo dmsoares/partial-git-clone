@@ -1,8 +1,8 @@
-module Core.Commit where
+module Wyag.Core.Commit where
 
-import Core.Parser
 import Data.ByteString as B
 import Data.Byteable
+import Wyag.Core.Parser
 
 data Commit = Commit
   { commitTree :: ByteString,

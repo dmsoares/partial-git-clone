@@ -60,18 +60,19 @@ library
     import:           base
     hs-source-dirs:   src
     exposed-modules:  Wyag
-    other-modules:    CLI.Parser
-                    , Core.Actions
-                    , Core.Commands
-                    , Core.Commit
-                    , Core.Config
-                    , Core.Exceptions
-                    , Core.Gitdir
-                    , Core.Object
-                    , Core.Parser
-                    , Core.Repo
-                    , Core.Tree
-                    , Core.Utils
+                    , Wyag.Cli
+                    , Wyag.Cli.Parser
+                    , Wyag.Core
+                    , Wyag.Core.Actions
+                    , Wyag.Core.Commands
+                    , Wyag.Core.Commit
+                    , Wyag.Core.Config
+                    , Wyag.Core.Exceptions
+                    , Wyag.Core.Object
+                    , Wyag.Core.Parser
+                    , Wyag.Core.Repo
+                    , Wyag.Core.Tree
+                    , Wyag.Core.Utils
     build-depends:    ascii
                     , byteable
                     , bytestring
@@ -115,3 +116,21 @@ executable wyag
 
     -- Base language which the package is written in.
     -- default-language:    Haskell2010
+
+test-suite wyag-test
+  import:              base
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+
+  other-modules:
+    Test.Wyag
+      Test.Wyag.Core.Object
+
+  build-depends:
+    wyag
+    , byteable
+    , hspec >= 2.9.7 && < 2.11
+    , megaparsec
+    , optparse-applicative
+    , text

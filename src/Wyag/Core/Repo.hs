@@ -1,15 +1,15 @@
-module Core.Repo where
+module Wyag.Core.Repo where
 
 import Control.Exception
 import Control.Monad.Extra
-import Core.Config
-import Core.Exceptions
-import Core.Utils
 import Data.ByteString as B
 import Data.Foldable
 import Data.Function
 import System.Directory
 import System.FilePath
+import Wyag.Core.Config
+import Wyag.Core.Exceptions
+import Wyag.Core.Utils
 
 data RepoMetadata = RepoMetadata
   { worktree :: FilePath,

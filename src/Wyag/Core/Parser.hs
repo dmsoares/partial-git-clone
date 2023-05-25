@@ -1,4 +1,4 @@
-module Core.Parser (module P, Parser, parseFileTest) where
+module Wyag.Core.Parser (module P, Parser, parseFileTest, parseFileTest', readWriteTest) where
 
 import Codec.Compression.Zlib (decompress)
 import Data.ByteString as B
@@ -16,3 +16,17 @@ parseFileTest parser path = do
       Just parsed = parseMaybe parser decompressedFile
   print decompressedFile
   print parsed
+
+parseFileTest' :: (Show a) => Parser a -> FilePath -> IO ()
+parseFileTest' parser path = do
+  file <- B.readFile path
+  let parsed = parse parser "file" file
+
+  print $ "file: " <> file
+  print parsed
+
+readWriteTest :: ByteString -> FilePath -> IO ()
+readWriteTest contents path = do
+  B.writeFile path contents
+  file <- B.readFile path
+  print file

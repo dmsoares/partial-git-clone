@@ -1,13 +1,7 @@
-module Core.Object where
+module Wyag.Core.Object where
 
 import Codec.Compression.Zlib (compress, decompress)
-import Core.Commit
-import Core.Parser
-import Core.Repo
-import Core.Tree
-import Crypto.Hash.SHA1 (hash)
 import Data.ByteString as B
-import Data.ByteString.Base16
 import qualified Data.ByteString.Lazy as BL
 import Data.ByteString.UTF8
 import Data.Byteable
@@ -15,6 +9,11 @@ import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
 import System.FilePath
 import qualified Text.Megaparsec.Byte.Lexer as L
+import Wyag.Core.Commit
+import Wyag.Core.Parser
+import Wyag.Core.Repo
+import Wyag.Core.Tree
+import Wyag.Core.Utils
 
 type SHA = ByteString
 
@@ -32,7 +31,7 @@ data GitObject
   | GitCommit Commit
   | GitTag Tag
   | GitTree Tree
-  deriving (Show)
+  deriving (Eq, Show)
 
 newtype Blob = Blob ByteString
   deriving (Eq, Show)
@@ -64,7 +63,7 @@ readObject repo sha
   | otherwise = do
       let path = mkRepoPath repo $ "objects" </> T.unpack (decodeUtf8 (B.take 2 sha)) </> T.unpack (decodeUtf8 (B.drop 2 sha))
       file <- BL.toStrict . decompress <$> BL.readFile path
-      pure $ parseMaybe objectP file
+      pure $ either (const Nothing) Just (parse objectP "object" file)
 
 writeObject :: RepoMetadata -> GitObject -> IO SHA
 writeObject repo obj = do
@@ -83,11 +82,8 @@ writeSerializedObject repo sha bytes = do
 hashObject :: GitObject -> (SHA, ByteString)
 hashObject obj =
   let serializedObject = toBytes obj
-      sha = genSHA serializedObject
+      sha = genSHA $ fromContents serializedObject (objectType obj)
    in (sha, serializedObject)
-
-genSHA :: ByteString -> SHA
-genSHA = encode . hash
 
 fromContents :: ByteString -> GitObjectType -> ByteString
 fromContents contents typ = withHeader (toBytes typ) contents

@@ -1,11 +1,11 @@
-module CLI.Parser where
+module Wyag.Cli.Parser where
 
-import Core.Commands
-import Core.Object hiding (objectTypeP)
 import Data.Void
 import qualified Options.Applicative as Opt
 import Text.Megaparsec
 import Text.Megaparsec.Char
+import Wyag.Core.Commands
+import Wyag.Core.Object hiding (objectTypeP)
 import Prelude hiding (init)
 
 commandParser :: Opt.Parser Command
@@ -16,7 +16,8 @@ commandParser =
         Opt.command "cat-file" (Opt.info catFileP (Opt.progDesc "Provide content of repository objects")),
         Opt.command "hash-object" (Opt.info hashObjectP (Opt.progDesc "Compute object ID and optionally creates a blob from a file")),
         Opt.command "log" (Opt.info logP (Opt.progDesc "Shows the commit logs")),
-        Opt.command "ls-tree" (Opt.info lsTreeP (Opt.progDesc "List the contents of a tree object"))
+        Opt.command "ls-tree" (Opt.info lsTreeP (Opt.progDesc "List the contents of a tree object")),
+        Opt.command "checkout" (Opt.info checkoutP (Opt.progDesc "Checkout a commit inside of a directory"))
       ]
 
 initP :: Opt.Parser Command
@@ -40,6 +41,12 @@ logP = Log <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit to 
 
 lsTreeP :: Opt.Parser Command
 lsTreeP = Log <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The tree to show")
+
+checkoutP :: Opt.Parser Command
+checkoutP =
+  Checkout
+    <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit or tree to checkout")
+    <*> Opt.strArgument (Opt.metavar "path" <> Opt.help "The EMPTY directory to checkout on")
 
 objectTypeP :: String -> Maybe GitObjectType
 objectTypeP = parseMaybe (choice typeParser)

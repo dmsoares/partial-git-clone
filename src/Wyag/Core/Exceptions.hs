@@ -1,4 +1,4 @@
-module Core.Exceptions where
+module Wyag.Core.Exceptions where
 
 import Control.Exception
 

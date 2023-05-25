@@ -1,7 +1,8 @@
 module Main where
 
 import Options.Applicative
-import Wyag
+import Wyag.Cli
+import Wyag.Core
 
 main :: IO ()
 main = dispatchCommand =<< execParser opts

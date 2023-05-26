@@ -69,7 +69,7 @@ lsTreeAction =
   where
     printEntry (TreeEntry {..}) =
       useObject
-        (\obj -> lift $ print (mode <> " " <> sha <> " " <> (fromString . show $ objectType obj) <> "\t" <> path))
+        (\obj -> lift $ print (mode <> " " <> sha <> " " <> (fromString . show $ objectType obj) <> " " <> path))
         sha
 
 checkoutAction :: FilePath -> SHA -> GitAction ()

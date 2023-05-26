@@ -40,7 +40,7 @@ logP :: Opt.Parser Command
 logP = Log <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit to log")
 
 lsTreeP :: Opt.Parser Command
-lsTreeP = Log <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The tree to show")
+lsTreeP = LsTree <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The tree to show")
 
 checkoutP :: Opt.Parser Command
 checkoutP =

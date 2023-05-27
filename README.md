@@ -14,7 +14,7 @@ Git's gritty details are in the [Git Book](https://git-scm.com/book/en/v2)
 Following [WYAG](https://wyag.thb.lt/), this Git clone should implement the following commands:
 - [ ] add 
 - [x] cat-file 
-- [ ] checkout
+- [x] checkout
 - [ ] commit 
 - [x] hash-object 
 - [x] init 

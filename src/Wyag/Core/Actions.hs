@@ -3,11 +3,12 @@ module Wyag.Core.Actions where
 import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State
 import qualified Data.ByteString as B
 import Data.ByteString.UTF8
 import Data.Byteable
 import Data.Foldable
+import System.Directory
+import System.FilePath ((</>))
 import Wyag.Core.Commit
 import Wyag.Core.Exceptions
 import Wyag.Core.Object
@@ -75,43 +76,29 @@ lsTreeAction =
 checkoutAction :: FilePath -> SHA -> GitAction ()
 checkoutAction path sha = do
   isSafe <- lift $ isDirectoryEmpty path
-  when isSafe do
-    mCommitObj <- askObject sha
-    case mCommitObj of
-      Nothing -> lift $ putStrLn (show NotAGitObject <> show sha)
-      Just (GitCommit (Commit {..})) -> do
-        useObject instantiateTree commitTree
-      _ -> lift $ print (GitObjectTypeMismatch "commit")
+  if isSafe
+    then do
+      mCommitObj <- askObject sha
+      case mCommitObj of
+        Nothing -> lift $ putStrLn (show NotAGitObject <> show sha)
+        Just (GitCommit (Commit {commitTree})) -> do
+          useObject instantiateTree commitTree
+        _ -> lift $ print (GitObjectTypeMismatch "commit")
+    else throw DirectoryNotEmpty
   where
-    instantiateTree (GitTree (Tree entries)) = do
-      treeExpanded <- execStateT (constructTreeExpanded entries) (TreeNode Nothing [])
-      lift $ print treeExpanded
-    instantiateTree _ = lift $ print (GitObjectTypeMismatch "tree")
+    instantiateTree (GitTree (Tree entries)) = traverse_ (writeTreeEntry path) entries
+    instantiateTree _ = throw $ GitObjectTypeMismatch "tree"
 
--- | Represents an expanded GitTree, by recursively expanding each sub-tree.
--- Remember that a Git Tree object is only a list of entries (either sub-trees or blobs).
--- In a TreeExpanded, nodes are sub-trees, leaves are blobs: the top-most tree represents
--- the worktree and thus has no associated TreeEntry (Nothing)
-data TreeExpanded = TreeNode (Maybe TreeEntry) [TreeExpanded] | TreeLeaf TreeEntry
-  deriving (Show)
-
-constructTreeExpanded :: [TreeEntry] -> StateT TreeExpanded GitAction ()
-constructTreeExpanded entries = do
-  treeExpanded <- get
-  case treeExpanded of
-    TreeLeaf _ -> pure ()
-    TreeNode e _ -> do
-      trees <- traverse expandNode entries
-      put $ TreeNode e trees
-  where
-    expandNode entry@(TreeEntry {sha}) = do
-      mObject <- lift $ askObject sha
-      case mObject of
-        Just (GitBlob _) -> pure $ TreeLeaf entry
-        Just (GitTree (Tree entries')) -> do
-          subTrees <- traverse expandNode entries'
-          pure $ TreeNode (Just entry) subTrees
-        _ -> throw $ GitObjectTypeMismatch "tree | blob"
+writeTreeEntry :: FilePath -> TreeEntry -> GitAction ()
+writeTreeEntry currentPath (TreeEntry {path, sha}) = do
+  mObject <- askObject sha
+  case mObject of
+    Just (GitBlob (Blob contents)) -> lift $ B.writeFile (currentPath </> toString path) contents
+    Just (GitTree (Tree entries)) -> do
+      let newDirectoryPath = currentPath </> toString path
+      lift $ createDirectoryIfMissing True newDirectoryPath
+      traverse_ (writeTreeEntry newDirectoryPath) entries
+    _ -> throw $ GitObjectTypeMismatch "tree | blob"
 
 askObject :: SHA -> GitAction (Maybe GitObject)
 askObject sha = do

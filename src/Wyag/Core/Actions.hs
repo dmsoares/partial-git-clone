@@ -1,5 +1,6 @@
 module Wyag.Core.Actions where
 
+import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
@@ -50,25 +51,17 @@ hashObjectAction typ w path = do
   lift $ print sha
 
 logAction :: SHA -> GitAction ()
-logAction =
-  useObject
-    ( \case
-        GitCommit commit@(Commit {..}) -> do
-          lift $ print $ toBytes commit <> "\n---\n"
-          traverse_ logAction commitParents
-        _ -> lift $ print (GitObjectTypeMismatch "commit")
-    )
+logAction = useCommit logCommit
+  where
+    logCommit commit@(Commit {..}) = do
+      lift $ print $ toBytes commit <> "\n---\n"
+      traverse_ logAction commitParents
 
 lsTreeAction :: SHA -> GitAction ()
-lsTreeAction =
-  useObject
-    ( \case
-        GitTree (Tree {..}) -> do
-          traverse_ printEntry treeEntries
-        _ -> lift $ print (GitObjectTypeMismatch "tree")
-    )
+lsTreeAction = useTree lsTree
   where
-    printEntry (TreeEntry {..}) =
+    lsTree (Tree {treeEntries}) = traverse_ printEntry treeEntries
+    printEntry (TreeEntry {mode, path, sha}) =
       useObject
         (\obj -> lift $ print (mode <> " " <> sha <> " " <> (fromString . show $ objectType obj) <> " " <> path))
         sha
@@ -77,29 +70,33 @@ checkoutAction :: FilePath -> SHA -> GitAction ()
 checkoutAction path sha = do
   isSafe <- lift $ isDirectoryEmpty path
   if isSafe
-    then do
-      mCommitObj <- askObject sha
-      case mCommitObj of
-        Nothing -> lift $ putStrLn (show NotAGitObject <> show sha)
-        Just (GitCommit (Commit {commitTree})) -> do
-          useObject instantiateTree commitTree
-        _ -> lift $ print (GitObjectTypeMismatch "commit")
+    then useCommit checkoutCommit sha
     else throw DirectoryNotEmpty
   where
-    instantiateTree (GitTree (Tree entries)) = traverse_ (writeTreeEntry path) entries
-    instantiateTree _ = throw $ GitObjectTypeMismatch "tree"
+    checkoutCommit (Commit {commitTree}) = useTree checkoutTree commitTree
+    checkoutTree (Tree entries) = traverse_ (writeTreeEntry path) entries
 
 writeTreeEntry :: FilePath -> TreeEntry -> GitAction ()
 writeTreeEntry currentPath (TreeEntry {path, sha}) = do
   mObject <- askObject sha
+  let newPath = currentPath </> toString path
   case mObject of
-    Just (GitBlob (Blob contents)) -> lift $ B.writeFile (currentPath </> toString path) contents
-    Just (GitTree (Tree entries)) -> do
-      let newDirectoryPath = currentPath </> toString path
-      lift $ createDirectoryIfMissing True newDirectoryPath
-      traverse_ (writeTreeEntry newDirectoryPath) entries
-    _ -> throw $ GitObjectTypeMismatch "tree | blob"
+    Just obj -> maybe throwException ($ newPath) (writeBlob obj <|> writeTree obj)
+    _ -> throwException
+  where
+    throwException = throw $ GitObjectTypeMismatch "tree | blob"
 
+writeBlob :: GitObject -> Maybe (FilePath -> GitAction ())
+writeBlob (GitBlob (Blob contents)) = Just (\path -> lift $ B.writeFile path contents)
+writeBlob _ = Nothing
+
+writeTree :: GitObject -> Maybe (FilePath -> GitAction ())
+writeTree (GitTree (Tree entries)) = Just $ \path -> do
+  lift $ createDirectoryIfMissing True path
+  traverse_ (writeTreeEntry path) entries
+writeTree _ = Nothing
+
+-- GitAction Utils
 askObject :: SHA -> GitAction (Maybe GitObject)
 askObject sha = do
   repo <- ask
@@ -111,3 +108,15 @@ useObject f sha = do
   case mObject of
     Nothing -> lift $ print NotAGitObject
     Just object -> f object
+
+useCommit :: (Commit -> GitAction ()) -> SHA -> GitAction ()
+useCommit action = useObject dispatcher
+  where
+    dispatcher (GitCommit commit) = action commit
+    dispatcher _ = lift $ print (GitObjectTypeMismatch "commit")
+
+useTree :: (Tree -> GitAction ()) -> SHA -> GitAction ()
+useTree action = useObject dispatcher
+  where
+    dispatcher (GitTree tree) = action tree
+    dispatcher _ = lift $ print (GitObjectTypeMismatch "tree")

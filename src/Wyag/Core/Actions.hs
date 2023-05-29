@@ -28,7 +28,7 @@ runWithRepo :: GitAction () -> IO ()
 runWithRepo action = do
   mRepo <- findRepo "." True
   case mRepo of
-    Nothing -> print NotAGitRepository
+    Nothing -> throw NotAGitRepository
     Just repo -> runReaderT action repo
 
 initAction :: FilePath -> GitAction ()
@@ -106,17 +106,17 @@ useObject :: (GitObject -> GitAction ()) -> SHA -> GitAction ()
 useObject f sha = do
   mObject <- askObject sha
   case mObject of
-    Nothing -> lift $ print NotAGitObject
+    Nothing -> throw NotAGitObject
     Just object -> f object
 
 useCommit :: (Commit -> GitAction ()) -> SHA -> GitAction ()
 useCommit action = useObject dispatcher
   where
     dispatcher (GitCommit commit) = action commit
-    dispatcher _ = lift $ print (GitObjectTypeMismatch "commit")
+    dispatcher _ = throw (GitObjectTypeMismatch "commit")
 
 useTree :: (Tree -> GitAction ()) -> SHA -> GitAction ()
 useTree action = useObject dispatcher
   where
     dispatcher (GitTree tree) = action tree
-    dispatcher _ = lift $ print (GitObjectTypeMismatch "tree")
+    dispatcher _ = throw (GitObjectTypeMismatch "tree")

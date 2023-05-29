@@ -70,6 +70,7 @@ library
                     , Wyag.Core.Exceptions
                     , Wyag.Core.Object
                     , Wyag.Core.Parser
+                    , Wyag.Core.Ref
                     , Wyag.Core.Repo
                     , Wyag.Core.Tree
                     , Wyag.Core.Utils

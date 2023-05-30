@@ -8,11 +8,17 @@ import qualified Data.ByteString as B
 import Data.ByteString.UTF8
 import Data.Byteable
 import Data.Foldable
+import Data.IORef
+import Data.List
+import qualified Data.Map as M
+import Data.Maybe
+import qualified Data.Text as T
 import System.Directory
 import System.FilePath ((</>))
 import Wyag.Core.Commit
 import Wyag.Core.Exceptions
 import Wyag.Core.Object
+import Wyag.Core.Ref
 import Wyag.Core.Repo
 import Wyag.Core.Tree
 import Wyag.Core.Utils
@@ -76,25 +82,28 @@ checkoutAction path sha = do
     checkoutCommit (Commit {commitTree}) = useTree checkoutTree commitTree
     checkoutTree (Tree entries) = traverse_ (writeTreeEntry path) entries
 
-writeTreeEntry :: FilePath -> TreeEntry -> GitAction ()
-writeTreeEntry currentPath (TreeEntry {path, sha}) = do
-  mObject <- askObject sha
-  let newPath = currentPath </> toString path
-  case mObject of
-    Just obj -> maybe throwException ($ newPath) (writeBlob obj <|> writeTree obj)
-    _ -> throwException
+showRefAction :: Maybe FilePath -> GitAction ()
+showRefAction path = do
+  gitdir <- asks gitdir
+  let path' = fromMaybe gitdir path </> "refs"
+
+  refs <- lift $ newIORef (M.empty :: M.Map FilePath ByteString)
+
+  collectRefs refs path'
+  printRefs refs
   where
-    throwException = throw $ GitObjectTypeMismatch "tree | blob"
-
-writeBlob :: GitObject -> Maybe (FilePath -> GitAction ())
-writeBlob (GitBlob (Blob contents)) = Just (\path -> lift $ B.writeFile path contents)
-writeBlob _ = Nothing
-
-writeTree :: GitObject -> Maybe (FilePath -> GitAction ())
-writeTree (GitTree (Tree entries)) = Just $ \path -> do
-  lift $ createDirectoryIfMissing True path
-  traverse_ (writeTreeEntry path) entries
-writeTree _ = Nothing
+    collectRefs refs path' = do
+      files <- lift (sort <$> listDirectory path')
+      for_ files \file -> do
+        isDir <- lift $ doesDirectoryExist (path' </> file)
+        if isDir
+          then collectRefs refs (path' </> file)
+          else do
+            ref <- lift $ resolveRef (T.pack path') (T.pack file)
+            lift $ modifyIORef refs $ M.insert (path' </> file) (toBytes ref)
+    printRefs refs =
+      lift (readIORef refs) >>= \(M.toList -> refs') -> do
+        lift $ for_ refs' (\(k, v) -> putStrLn (toString v <> " " <> k))
 
 -- GitAction Utils
 askObject :: SHA -> GitAction (Maybe GitObject)
@@ -120,3 +129,23 @@ useTree action = useObject dispatcher
   where
     dispatcher (GitTree tree) = action tree
     dispatcher _ = throw (GitObjectTypeMismatch "tree")
+
+writeTreeEntry :: FilePath -> TreeEntry -> GitAction ()
+writeTreeEntry currentPath (TreeEntry {path, sha}) = do
+  mObject <- askObject sha
+  let newPath = currentPath </> toString path
+  case mObject of
+    Just obj -> maybe throwException ($ newPath) (writeBlob obj <|> writeTree obj)
+    _ -> throwException
+  where
+    throwException = throw $ GitObjectTypeMismatch "tree | blob"
+
+writeBlob :: GitObject -> Maybe (FilePath -> GitAction ())
+writeBlob (GitBlob (Blob contents)) = Just (\path -> lift $ B.writeFile path contents)
+writeBlob _ = Nothing
+
+writeTree :: GitObject -> Maybe (FilePath -> GitAction ())
+writeTree (GitTree (Tree entries)) = Just $ \path -> do
+  lift $ createDirectoryIfMissing True path
+  traverse_ (writeTreeEntry path) entries
+writeTree _ = Nothing

@@ -13,9 +13,6 @@ data Commit = Commit
   }
   deriving (Eq, Show)
 
-mkCommit :: ByteString -> Maybe Commit
-mkCommit = parseMaybe commitP
-
 instance Byteable Commit where
   toBytes (Commit {..}) =
     mconcat

@@ -72,6 +72,7 @@ library
                     , Wyag.Core.Parser
                     , Wyag.Core.Ref
                     , Wyag.Core.Repo
+                    , Wyag.Core.Tag
                     , Wyag.Core.Tree
                     , Wyag.Core.Utils
     build-depends:    ascii

@@ -17,7 +17,8 @@ commandParser =
         Opt.command "hash-object" (Opt.info hashObjectP (Opt.progDesc "Compute object ID and optionally creates a blob from a file")),
         Opt.command "log" (Opt.info logP (Opt.progDesc "Shows the commit logs")),
         Opt.command "ls-tree" (Opt.info lsTreeP (Opt.progDesc "List the contents of a tree object")),
-        Opt.command "checkout" (Opt.info checkoutP (Opt.progDesc "Checkout a commit inside of a directory"))
+        Opt.command "checkout" (Opt.info checkoutP (Opt.progDesc "Checkout a commit inside of a directory")),
+        Opt.command "show-ref" (Opt.info showRefP (Opt.progDesc "List references in a local repository"))
       ]
 
 initP :: Opt.Parser Command
@@ -47,6 +48,9 @@ checkoutP =
   Checkout
     <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit or tree to checkout")
     <*> Opt.strArgument (Opt.metavar "path" <> Opt.help "The EMPTY directory to checkout on")
+
+showRefP :: Opt.Parser Command
+showRefP = ShowRef <$> Opt.strArgument (Opt.metavar "path" <> Opt.value "" <> Opt.help "The path to refs")
 
 objectTypeP :: String -> Maybe GitObjectType
 objectTypeP = parseMaybe (choice typeParser)

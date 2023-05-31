@@ -5,7 +5,7 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
 import qualified Data.ByteString as B
-import Data.ByteString.UTF8
+import Data.ByteString.UTF8 hiding (drop, length)
 import Data.Byteable
 import Data.Foldable
 import Data.IORef
@@ -85,25 +85,26 @@ checkoutAction path sha = do
 showRefAction :: Maybe FilePath -> GitAction ()
 showRefAction path = do
   gitdir <- asks gitdir
-  let path' = fromMaybe gitdir path </> "refs"
+  let path' = fromMaybe gitdir path
 
   refs <- lift $ newIORef (M.empty :: M.Map FilePath ByteString)
 
-  collectRefs refs path'
+  collectRefs refs path' (path' </> "refs")
   printRefs refs
   where
-    collectRefs refs path' = do
+    collectRefs refs basePath path' = do
       files <- lift (sort <$> listDirectory path')
       for_ files \file -> do
         isDir <- lift $ doesDirectoryExist (path' </> file)
         if isDir
-          then collectRefs refs (path' </> file)
+          then collectRefs refs basePath (path' </> file)
           else do
             ref <- lift $ resolveRef (T.pack path') (T.pack file)
-            lift $ modifyIORef refs $ M.insert (path' </> file) (toBytes ref)
+            lift $ modifyIORef refs $ M.insert (dropPrefix basePath path' </> file) (toBytes ref)
     printRefs refs =
       lift (readIORef refs) >>= \(M.toList -> refs') -> do
         lift $ for_ refs' (\(k, v) -> putStrLn (toString v <> " " <> k))
+    dropPrefix prefix = drop (length prefix + 1) -- 1 for the final "/"
 
 -- GitAction Utils
 askObject :: SHA -> GitAction (Maybe GitObject)

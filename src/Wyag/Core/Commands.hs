@@ -10,6 +10,7 @@ data Command
   | Log SHA
   | LsTree SHA
   | Checkout SHA FilePath
+  | ShowRef FilePath
 
 dispatchCommand :: Command -> IO ()
 dispatchCommand (Init path) = runInit $ initAction path
@@ -18,3 +19,6 @@ dispatchCommand (HashObject typ w path) = runWithRepo $ hashObjectAction typ w p
 dispatchCommand (Log sha) = runWithRepo $ logAction sha
 dispatchCommand (LsTree sha) = runWithRepo $ lsTreeAction sha
 dispatchCommand (Checkout sha path) = runWithRepo $ checkoutAction path sha
+dispatchCommand (ShowRef path)
+  | "" <- path = runWithRepo $ showRefAction Nothing
+  | otherwise = runWithRepo $ showRefAction (Just path)

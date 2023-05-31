@@ -25,5 +25,5 @@ Following [WYAG](https://wyag.thb.lt/), this Git clone should implement the foll
 - [ ] rebase 
 - [ ] rev-parse 
 - [ ] rm 
-- [ ] show-ref 
+- [x] show-ref 
 - [ ] tag 

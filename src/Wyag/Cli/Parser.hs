@@ -18,39 +18,50 @@ commandParser =
         Opt.command "log" (Opt.info logP (Opt.progDesc "Shows the commit logs")),
         Opt.command "ls-tree" (Opt.info lsTreeP (Opt.progDesc "List the contents of a tree object")),
         Opt.command "checkout" (Opt.info checkoutP (Opt.progDesc "Checkout a commit inside of a directory")),
-        Opt.command "show-ref" (Opt.info showRefP (Opt.progDesc "List references in a local repository"))
+        Opt.command "show-ref" (Opt.info showRefP (Opt.progDesc "List references in a local repository")),
+        Opt.command "tag" (Opt.info tagP (Opt.progDesc "Create or list a tag object"))
       ]
 
 initP :: Opt.Parser Command
-initP = Init <$> Opt.strArgument (Opt.metavar "path" <> Opt.value "." <> Opt.help "Where to create the repository")
+initP = InitCommand <$> Opt.strArgument (Opt.metavar "path" <> Opt.value "." <> Opt.help "Where to create the repository")
 
 catFileP :: Opt.Parser Command
 catFileP =
-  CatFile
+  CatFileCommand
     <$> Opt.argument (Opt.maybeReader objectTypeP) (Opt.metavar "type" <> Opt.help "Specify the type")
     <*> Opt.strArgument (Opt.metavar "object" <> Opt.help "The object to display")
 
 hashObjectP :: Opt.Parser Command
 hashObjectP =
-  HashObject
+  HashObjectCommand
     <$> Opt.option (Opt.maybeReader objectTypeP) (Opt.long "type" <> Opt.short 't' <> Opt.metavar "TYPE" <> Opt.value BlobType <> Opt.help "Specify the type")
     <*> Opt.switch (Opt.long "write" <> Opt.short 'w' <> Opt.help "Write object into database")
     <*> Opt.strArgument (Opt.metavar "path" <> Opt.help "Read object from <file>")
 
 logP :: Opt.Parser Command
-logP = Log <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit to log")
+logP = LogCommand <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit to log")
 
 lsTreeP :: Opt.Parser Command
-lsTreeP = LsTree <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The tree to show")
+lsTreeP = LsTreeCommand <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The tree to show")
 
 checkoutP :: Opt.Parser Command
 checkoutP =
-  Checkout
+  CheckoutCommand
     <$> Opt.strArgument (Opt.metavar "commit" <> Opt.help "The commit or tree to checkout")
     <*> Opt.strArgument (Opt.metavar "path" <> Opt.help "The EMPTY directory to checkout on")
 
 showRefP :: Opt.Parser Command
-showRefP = ShowRef <$> Opt.strArgument (Opt.metavar "path" <> Opt.value "" <> Opt.help "The path to refs")
+showRefP = ShowRefCommand <$> Opt.strArgument (Opt.metavar "path" <> Opt.value "" <> Opt.help "The path to refs")
+
+tagP :: Opt.Parser Command
+tagP =
+  TagCreateCommand
+    <$> Opt.switch (Opt.short 'a' <> Opt.help "Whether to create a tag object")
+    <*> ( (,,"Virginia","Jun 01 2023","A comment")
+            <$> Opt.strArgument (Opt.metavar "object" <> Opt.help "The object to tag")
+            <*> Opt.strArgument (Opt.metavar "name" <> Opt.help "The tag name")
+        )
+    <|> pure TagListCommand
 
 objectTypeP :: String -> Maybe GitObjectType
 objectTypeP = parseMaybe (choice typeParser)

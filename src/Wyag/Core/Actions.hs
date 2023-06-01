@@ -20,6 +20,7 @@ import Wyag.Core.Exceptions
 import Wyag.Core.Object
 import Wyag.Core.Ref
 import Wyag.Core.Repo
+import Wyag.Core.Tag
 import Wyag.Core.Tree
 import Wyag.Core.Utils
 
@@ -91,20 +92,26 @@ showRefAction path = do
 
   collectRefs refs path' (path' </> "refs")
   printRefs refs
+
+tagCreateAction :: Either (ByteString, Ref) Tag -> GitAction ()
+tagCreateAction tag = do
+  repo <- ask
+  case tag of
+    (Left (name, ref)) -> writeLightweightTag repo name (toBytes ref)
+    (Right tag'@(Tag {tagName})) -> do
+      sha <- lift $ writeObject repo (GitTag tag')
+      writeLightweightTag repo tagName sha
   where
-    collectRefs refs basePath path' = do
-      files <- lift (sort <$> listDirectory path')
-      for_ files \file -> do
-        isDir <- lift $ doesDirectoryExist (path' </> file)
-        if isDir
-          then collectRefs refs basePath (path' </> file)
-          else do
-            ref <- lift $ resolveRef (T.pack path') (T.pack file)
-            lift $ modifyIORef refs $ M.insert (dropPrefix basePath path' </> file) (toBytes ref)
-    printRefs refs =
-      lift (readIORef refs) >>= \(M.toList -> refs') -> do
-        lift $ for_ refs' (\(k, v) -> putStrLn (toString v <> " " <> k))
-    dropPrefix prefix = drop (length prefix + 1) -- 1 for the final "/"
+    writeLightweightTag repo name sha = lift $ createRepositoryFile repo ("refs" </> "tags" </> toString name) sha
+
+tagListAction :: GitAction ()
+tagListAction = do
+  gitdir <- asks gitdir
+
+  refs <- lift $ newIORef (M.empty :: M.Map FilePath ByteString)
+
+  collectRefs refs gitdir (gitdir </> "refs" </> "tags")
+  printRefs refs
 
 -- GitAction Utils
 askObject :: SHA -> GitAction (Maybe GitObject)
@@ -150,3 +157,21 @@ writeTree (GitTree (Tree entries)) = Just $ \path -> do
   lift $ createDirectoryIfMissing True path
   traverse_ (writeTreeEntry path) entries
 writeTree _ = Nothing
+
+collectRefs :: IORef (M.Map FilePath ByteString) -> FilePath -> FilePath -> GitAction ()
+collectRefs refs basePath path' = do
+  files <- lift (sort <$> listDirectory path')
+  for_ files \file -> do
+    isDir <- lift $ doesDirectoryExist (path' </> file)
+    if isDir
+      then collectRefs refs basePath (path' </> file)
+      else do
+        ref <- lift $ resolveRef (T.pack path') (T.pack file)
+        lift $ modifyIORef refs $ M.insert (dropPrefix basePath path' </> file) (toBytes ref)
+  where
+    dropPrefix prefix = drop (length prefix + 1) -- 1 for the final "/"
+
+printRefs :: IORef (M.Map String ByteString) -> GitAction ()
+printRefs refs =
+  lift (readIORef refs) >>= \(M.toList -> refs') -> do
+    lift $ for_ refs' (\(k, v) -> putStrLn (toString v <> " " <> k))

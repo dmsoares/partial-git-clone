@@ -12,6 +12,7 @@ import qualified Text.Megaparsec.Byte.Lexer as L
 import Wyag.Core.Commit
 import Wyag.Core.Parser
 import Wyag.Core.Repo
+import Wyag.Core.Tag
 import Wyag.Core.Tree
 import Wyag.Core.Utils
 
@@ -36,17 +37,11 @@ data GitObject
 newtype Blob = Blob ByteString
   deriving (Eq, Show)
 
-newtype Tag = Tag ByteString
-  deriving (Eq, Show)
-
 instance Byteable GitObjectType where
   toBytes = fromString . show
 
 instance Byteable Blob where
   toBytes (Blob contents) = contents
-
-instance Byteable Tag where
-  toBytes (Tag contents) = contents
 
 instance Byteable GitObject where
   toBytes (GitBlob blob) = withHeader "blob" $ toBytes blob
@@ -106,7 +101,7 @@ objectP = do
     else case typ of
       BlobType -> pure . GitBlob . Blob $ contents
       CommitType -> GitCommit <$> commitP
-      TagType -> pure . GitTag . Tag $ contents
+      TagType -> GitTag <$> tagP
       TreeType -> GitTree <$> treeP
 
 headerP :: Parser (GitObjectType, Int)

@@ -5,7 +5,9 @@ import Data.Byteable
 import Wyag.Core.Parser
 
 data Tag = Tag
-  { tagTagger :: ByteString,
+  { tagObject :: ByteString,
+    tagName :: ByteString,
+    tagTagger :: ByteString,
     tagDate :: ByteString,
     tagMessage :: ByteString
   }
@@ -14,7 +16,9 @@ data Tag = Tag
 instance Byteable Tag where
   toBytes (Tag {..}) =
     mconcat
-      [ "tagger " <> tagTagger <> "\n",
+      [ "object " <> tagObject <> "\n",
+        "name " <> tagName <> "\n",
+        "tagger " <> tagTagger <> "\n",
         "date " <> tagDate <> "\n",
         "\n" <> tagMessage <> "\n"
       ]
@@ -22,7 +26,9 @@ instance Byteable Tag where
 tagP :: Parser Tag
 tagP =
   Tag
-    <$> kvP "tagger"
+    <$> kvP "object"
+    <*> kvP "name"
+    <*> kvP "tagger"
     <*> kvP "date"
     <*> (newline >> takeRest)
 

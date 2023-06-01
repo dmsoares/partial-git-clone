@@ -17,10 +17,10 @@ instance Byteable Ref where
 
 resolveRef :: Text -> Text -> IO Ref
 resolveRef basePath refName =
-  let refP = string "ref: " *> takeRest :: Parser ByteString
+  let indirectRefP = string "ref: " *> takeRest :: Parser ByteString
    in do
         contents <- B.readFile (T.unpack basePath </> T.unpack refName)
-        let result = parse refP "ref" contents
+        let result = parse indirectRefP "ref" contents
         case result of
           Left _ -> pure $ Ref (B.takeWhile (/= 10) contents)
           Right newRefName -> resolveRef basePath (decodeUtf8 newRefName)
